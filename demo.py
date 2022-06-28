@@ -14,7 +14,6 @@ from PIL import ImageDraw
 from PIL import ImageFont
 from colour import Color
 
-
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--video', type=str, help='input video path. live cam is used when not specified')
@@ -100,11 +99,10 @@ def run(video_path, face_path, model_weight, jitter, vis, display_off, save_text
     # load model weights
     model = model_static(model_weight)
     model_dict = model.state_dict()
-    snapshot = torch.load(model_weight)
+    snapshot = torch.load(model_weight, map_location=torch.device('cpu'))
     model_dict.update(snapshot)
     model.load_state_dict(model_dict)
 
-    model.cuda()
     model.train(False)
 
     # video reading loop
@@ -148,10 +146,10 @@ def run(video_path, face_path, model_weight, jitter, vis, display_off, save_text
                         img = torch.cat([img, img_jittered])
 
                 # forward pass
-                output = model(img.cuda())
+                output = model(img)
                 if jitter > 0:
                     output = torch.mean(output, 0)
-                score = F.sigmoid(output).item()
+                score = torch.sigmoid(output).item()
 
                 coloridx = min(int(round(score*10)),9)
                 draw = ImageDraw.Draw(frame)
@@ -163,7 +161,6 @@ def run(video_path, face_path, model_weight, jitter, vis, display_off, save_text
             if not display_off:
                 frame = np.asarray(frame) # convert PIL image back to opencv format for faster display
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                cv2.imshow('',frame)
                 if vis:
                     outvid.write(frame)
                 key = cv2.waitKey(1) & 0xFF
@@ -177,7 +174,7 @@ def run(video_path, face_path, model_weight, jitter, vis, display_off, save_text
     if save_text:
         f.close()
     cap.release()
-    print 'DONE!'
+    print("DONE!")
 
 
 if __name__ == "__main__":
